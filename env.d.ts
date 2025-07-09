@@ -10,6 +10,9 @@ declare namespace CloudflareEnv {
     NEXT_PUBLIC_FIREBASE_APP_ID: string
     NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: string
     NEXT_PUBLIC_IMAGE_CACHE_WORKER_URL: string
+    NEXT_PUBLIC_SUPABASE_URL: string
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: string
+    SUPABASE_SERVICE_ROLE_KEY: string
   }
 }
 

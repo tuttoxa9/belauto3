@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { doc, getDoc, setDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -67,9 +66,18 @@ export default function AdminCredit() {
 
   const loadCreditData = async () => {
     try {
-      const creditDoc = await getDoc(doc(db, "pages", "credit"))
-      if (creditDoc.exists()) {
-        setCreditData(creditDoc.data())
+      const { data, error } = await supabase
+        .from('content_pages')
+        .select('content')
+        .eq('page', 'credit')
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        console.error("Ошибка загрузки данных:", error)
+      }
+
+      if (data?.content) {
+        setCreditData(data.content)
       }
     } catch (error) {
       console.error("Ошибка загрузки данных:", error)
@@ -81,7 +89,17 @@ export default function AdminCredit() {
   const saveCreditData = async () => {
     setSaving(true)
     try {
-      await setDoc(doc(db, "pages", "credit"), creditData)
+      const { error } = await supabase
+        .from('content_pages')
+        .upsert({
+          page: 'credit',
+          content: creditData
+        })
+
+      if (error) {
+        throw error
+      }
+
       alert("Данные сохранены!")
     } catch (error) {
       console.error("Ошибка сохранения:", error)

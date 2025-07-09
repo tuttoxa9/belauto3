@@ -14,8 +14,8 @@ import { Calculator, CreditCard, CheckCircle, Building, Percent, Clock, DollarSi
 import { Checkbox } from "@/components/ui/checkbox"
 import { useUsdBynRate } from "@/components/providers/usd-byn-rate-provider"
 import { convertUsdToByn } from "@/lib/utils"
-import { doc, getDoc, addDoc, collection } from "firebase/firestore"
-import { db } from "@/lib/firebase"
+
+import { supabase } from "@/lib/supabase"
 import CreditConditions from "@/components/credit-conditions"
 import { getCachedImageUrl } from "@/lib/image-cache"
 
@@ -85,11 +85,18 @@ export default function CreditPage() {
 
   const loadSettings = async () => {
     try {
-      const doc_ref = doc(db, "pages", "credit")
-      const doc_snap = await getDoc(doc_ref)
+      const { data, error } = await supabase
+        .from('content_pages')
+        .select('content')
+        .eq('page', 'credit')
+        .single()
 
-      if (doc_snap.exists()) {
-        setSettings(doc_snap.data() as CreditPageSettings)
+      if (error && error.code !== 'PGRST116') {
+        console.error("Ошибка загрузки настроек:", error)
+      }
+
+      if (data?.content) {
+        setSettings(data.content as CreditPageSettings)
       } else {
         // Default fallback data only if no data exists
         setSettings({
@@ -250,13 +257,20 @@ export default function CreditPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      // Сохраняем в Firebase
-      await addDoc(collection(db, "leads"), {
-        ...creditForm,
-        type: "credit_request",
-        status: "new",
-        createdAt: new Date(),
-      })
+      // Сохраняем в Supabase
+      const { error } = await supabase
+        .from('leads')
+        .insert({
+          name: creditForm.name,
+          phone: creditForm.phone,
+          email: creditForm.email,
+          message: `Заявка на кредит: стоимость авто $${creditForm.carPrice}, взнос $${creditForm.downPayment}, срок ${creditForm.loanTerm} мес., банк: ${creditForm.bank}. ${creditForm.message}`,
+          type: "credit"
+        })
+
+      if (error) {
+        throw error
+      }
 
       // Отправляем уведомление в Telegram
       try {
