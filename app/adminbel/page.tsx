@@ -19,11 +19,13 @@ import AdminContacts from "@/components/admin/admin-contacts"
 import AdminReviews from "@/components/admin/admin-reviews"
 import AdminPrivacy from "@/components/admin/admin-privacy"
 import AdminLeasing from "@/components/admin/admin-leasing"
+import SupabaseDiagnostics from "@/components/supabase-diagnostics"
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null)
   const [loginForm, setLoginForm] = useState({ email: "", password: "" })
   const [loginError, setLoginError] = useState("")
+  const [useServerAuth, setUseServerAuth] = useState(false)
 
   useEffect(() => {
     // Check current session
@@ -47,14 +49,21 @@ export default function AdminPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError("")
+
+    console.log("🔐 Попытка входа для:", loginForm.email)
+    console.log("🌐 Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
+
     try {
+      // Сначала проверим подключение к Supabase
+      console.log("🔍 Проверка подключения к Supabase...")
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: loginForm.email,
         password: loginForm.password,
       })
 
       if (error) {
-        console.error("Ошибка аутентификации:", error)
+        console.error("❌ Ошибка аутентификации:", error)
 
         // Более детальная обработка ошибок
         if (error.message.includes('Invalid login credentials')) {
@@ -63,15 +72,22 @@ export default function AdminPage() {
           setLoginError("Email не подтвержден")
         } else if (error.message.includes('Too many requests')) {
           setLoginError("Слишком много попыток. Попробуйте позже")
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('fetch')) {
+          setLoginError("Ошибка подключения к серверу. Проверьте настройки Supabase или попробуйте позже")
         } else {
           setLoginError(`Ошибка входа: ${error.message}`)
         }
       } else if (data.user) {
-        console.log("Успешный вход:", data.user.email)
+        console.log("✅ Успешный вход:", data.user.email)
       }
     } catch (error) {
-      console.error("Критическая ошибка входа:", error)
-      setLoginError("Произошла критическая ошибка при входе. Проверьте настройки Supabase")
+      console.error("💥 Критическая ошибка входа:", error)
+
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        setLoginError("Ошибка сети: Не удается подключиться к Supabase. Проверьте настройки проекта")
+      } else {
+        setLoginError("Произошла критическая ошибка при входе. Проверьте настройки Supabase")
+      }
     }
   }
 
@@ -95,6 +111,7 @@ export default function AdminPage() {
             <p className="text-gray-600">Белавто Центр</p>
           </CardHeader>
           <CardContent>
+            <SupabaseDiagnostics />
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <Label htmlFor="email" className="text-gray-700">
