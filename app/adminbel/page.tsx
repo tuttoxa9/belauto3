@@ -48,17 +48,30 @@ export default function AdminPage() {
     e.preventDefault()
     setLoginError("")
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: loginForm.email,
         password: loginForm.password,
       })
 
       if (error) {
-        setLoginError("Неверный email или пароль")
+        console.error("Ошибка аутентификации:", error)
+
+        // Более детальная обработка ошибок
+        if (error.message.includes('Invalid login credentials')) {
+          setLoginError("Неверный email или пароль")
+        } else if (error.message.includes('Email not confirmed')) {
+          setLoginError("Email не подтвержден")
+        } else if (error.message.includes('Too many requests')) {
+          setLoginError("Слишком много попыток. Попробуйте позже")
+        } else {
+          setLoginError(`Ошибка входа: ${error.message}`)
+        }
+      } else if (data.user) {
+        console.log("Успешный вход:", data.user.email)
       }
     } catch (error) {
-      console.error("Ошибка входа:", error)
-      setLoginError("Произошла ошибка при входе")
+      console.error("Критическая ошибка входа:", error)
+      setLoginError("Произошла критическая ошибка при входе. Проверьте настройки Supabase")
     }
   }
 
